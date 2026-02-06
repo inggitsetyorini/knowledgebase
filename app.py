@@ -444,19 +444,7 @@ if menu == "✍️ Artikel Saya":
 
     content = st.text_area(
         "Isi Artikel (Markdown didukung)",
-        height=260,
-        placeholder="""
-## Judul Section
-Paragraf biasa.
-
-- Bullet
-- Bullet
-
-### Tabel
-| Nama | Nilai |
-|------|-------|
-| A    | 90    |
-"""
+        height=260
     )
 
     # ================= UPLOAD IMAGE / PDF =================
@@ -466,190 +454,86 @@ Paragraf biasa.
     )
 
     if file and file.type.startswith("image"):
-        st.markdown("**Preview Gambar:**")
         st.image(file, width=300)
 
-    # ================= CSV → CHART BUILDER =================
-    st.divider()
-    st.markdown("### 📊 Grafik dari CSV (Opsional)")
-
-    csv_file = st.file_uploader(
-        "Upload CSV",
-        type=["csv"]
-    )
-
-    chart_config = None
-
-    if csv_file:
-        df_csv = pd.read_csv(csv_file)
-        st.dataframe(df_csv, use_container_width=True)
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-            x_col = st.selectbox("Kolom X", df_csv.columns)
-
-        with col2:
-            y_col = st.selectbox("Kolom Y", df_csv.columns)
-
-        with col3:
-            chart_type = st.selectbox(
-                "Jenis Grafik",
-                ["Line", "Bar", "Area"]
-            )
-
-        with col4:
-            chart_color = st.color_picker(
-                "Warna Grafik",
-                "#ff5da2"
-            )
-
-        st.markdown("#### Preview Grafik")
-
-        fig, ax = plt.subplots()
-
-        if chart_type == "Line":
-            ax.plot(df_csv[x_col], df_csv[y_col], color=chart_color)
-        elif chart_type == "Bar":
-            ax.bar(df_csv[x_col], df_csv[y_col], color=chart_color)
-        else:
-            ax.fill_between(df_csv[x_col], df_csv[y_col], color=chart_color, alpha=0.6)
-
-        ax.set_xlabel(x_col)
-        ax.set_ylabel(y_col)
-        ax.set_title(title or "Grafik Artikel")
-
-        st.pyplot(fig)
-
-        chart_config = {
-            "x": x_col,
-            "y": y_col,
-            "type": chart_type,
-            "color": chart_color,
-            "csv": None
-        }
-
-    # ================= SIMPAN =================
+    # ================= SIMPAN ARTIKEL =================
     if st.button("💾 Simpan Artikel", type="primary"):
         if not title or not content:
             st.warning("Judul dan isi wajib diisi")
             st.stop()
 
         attach = None
-
-        # ---- FILE IMAGE / PDF ----
         if file:
             folder = "uploads/images" if file.type.startswith("image") else "uploads/pdfs"
             os.makedirs(folder, exist_ok=True)
             attach = f"{folder}/{datetime.now().timestamp()}_{file.name}"
-
             with open(attach, "wb") as f:
                 f.write(file.getbuffer())
 
-            if file.type.startswith("image"):
-                content += f"\n\n![{file.name}]({attach})"
-
-        # ---- CSV ----
-        if csv_file and chart_config:
-            os.makedirs("uploads/csv", exist_ok=True)
-            csv_path = f"uploads/csv/{datetime.now().timestamp()}_{csv_file.name}"
-            with open(csv_path, "wb") as f:
-                f.write(csv_file.getbuffer())
-
-            chart_config["csv"] = csv_path
-
-        # ---- FONT STYLE WRAP ----
-        font_css = ""
-        if font_family == "Serif":
-            font_css = "font-family:serif;"
-        elif font_family == "Monospace":
-            font_css = "font-family:monospace;"
-
-        content = f"<div style='{font_css}'>{content}</div>"
-
         conn.execute("""
-            INSERT INTO articles
-            (title, content, author, attachment, chart_config, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO articles (title, content, author, attachment, created_at)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             title,
             content,
             st.session_state.user,
             attach,
-            json.dumps(chart_config) if chart_config else None,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ))
         conn.commit()
 
-        # ================= POPUP =================
-        st.success("✅ Artikel berhasil ditambahkan!")
-        st.toast("📚 Artikel tersimpan", icon="🎉")
-
-        import time
-        time.sleep(1)
-        st.rerun()
-# ================= EDIT ARTIKEL =================
-if st.session_state.edit_article_id:
-    edit_id = st.session_state.edit_article_id
-
-    a = pd.read_sql(
-        "SELECT * FROM articles WHERE id=?",
-        conn,
-        params=(edit_id,)
-    ).iloc[0]
-
-    st.divider()
-    st.subheader("✏️ Edit Artikel")
-
-    with st.form("edit_article_form"):
-        edit_title = st.text_input("Judul Artikel", a["title"])
-        edit_content = st.text_area(
-            "Isi Artikel (Markdown)",
-            a["content"],
-            height=260
-        )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            save = st.form_submit_button("💾 Simpan Perubahan", type="primary")
-        with col2:
-            cancel = st.form_submit_button("❌ Batal")
-
-    if save:
-        conn.execute("""
-            UPDATE articles
-            SET title=?, content=?, updated_at=?
-            WHERE id=?
-        """, (
-            edit_title,
-            edit_content,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            edit_id
-        ))
-        conn.commit()
-
-        st.success("✅ Artikel berhasil diperbarui")
-        st.session_state.edit_article_id = None
+        st.success("✅ Artikel berhasil ditambahkan")
         st.rerun()
 
-    if cancel:
-        st.session_state.edit_article_id = None
-        st.rerun()
-# ---- ACTION BUTTONS ----
-col1, col2 = st.columns(2)
+    # =====================================================
+    # ================= EDIT ARTIKEL ======================
+    # =====================================================
+    if st.session_state.edit_article_id:
+        edit_id = st.session_state.edit_article_id
 
-with col1:
-    if st.button("✏️ Edit", key=f"edit_{a['id']}"):
-        st.session_state.edit_article_id = a["id"]
-        st.rerun()
+        a = pd.read_sql(
+            "SELECT * FROM articles WHERE id=?",
+            conn,
+            params=(edit_id,)
+        ).iloc[0]
 
-with col2:
-    if st.button("🗑️ Delete", key=f"del_{a['id']}"):
-        conn.execute("DELETE FROM articles WHERE id=?", (a["id"],))
-        conn.commit()
-        st.success("🗑️ Artikel dihapus")
-        st.rerun()
-    # ================= LIST ARTIKEL =================
+        st.divider()
+        st.subheader("✏️ Edit Artikel")
+
+        with st.form("edit_form"):
+            edit_title = st.text_input("Judul", a["title"])
+            edit_content = st.text_area("Isi", a["content"], height=260)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                save = st.form_submit_button("💾 Simpan")
+            with col2:
+                cancel = st.form_submit_button("❌ Batal")
+
+        if save:
+            conn.execute("""
+                UPDATE articles
+                SET title=?, content=?, updated_at=?
+                WHERE id=?
+            """, (
+                edit_title,
+                edit_content,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                edit_id
+            ))
+            conn.commit()
+
+            st.session_state.edit_article_id = None
+            st.success("✅ Artikel diperbarui")
+            st.rerun()
+
+        if cancel:
+            st.session_state.edit_article_id = None
+            st.rerun()
+
+    # =====================================================
+    # ================= LIST ARTIKEL ======================
+    # =====================================================
     st.divider()
     st.subheader("📄 Daftar Artikel")
 
@@ -669,28 +553,22 @@ with col2:
         with st.expander(f"{a['title']} — ✍️ {a['author']}"):
             st.markdown(a["content"], unsafe_allow_html=True)
 
-            if a["attachment"]:
-                st.markdown(f"📎 [Download File]({a['attachment']})")
+            col1, col2 = st.columns(2)
 
-            # ---- RENDER CHART ----
-            if a.get("chart_config"):
-                cfg = json.loads(a["chart_config"])
-                if cfg and cfg.get("csv"):
-                    df = pd.read_csv(cfg["csv"])
-                    st.markdown("### 📊 Grafik Artikel")
+            with col1:
+                if st.button("✏️ Edit", key=f"edit_{a['id']}"):
+                    st.session_state.edit_article_id = a["id"]
+                    st.rerun()
 
-                    fig, ax = plt.subplots()
-                    if cfg["type"] == "Line":
-                        ax.plot(df[cfg["x"]], df[cfg["y"]], color=cfg["color"])
-                    elif cfg["type"] == "Bar":
-                        ax.bar(df[cfg["x"]], df[cfg["y"]], color=cfg["color"])
-                    else:
-                        ax.fill_between(df[cfg["x"]], df[cfg["y"]], color=cfg["color"], alpha=0.6)
-
-                    ax.set_xlabel(cfg["x"])
-                    ax.set_ylabel(cfg["y"])
-                    st.pyplot(fig)
-
+            with col2:
+                if st.button("🗑️ Delete", key=f"del_{a['id']}"):
+                    conn.execute(
+                        "DELETE FROM articles WHERE id=?",
+                        (a["id"],)
+                    )
+                    conn.commit()
+                    st.success("🗑️ Artikel dihapus")
+                    st.rerun()
 
 
 
