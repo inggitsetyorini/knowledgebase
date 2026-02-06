@@ -5,3 +5,4 @@ scikit-learn
 Pillow
 markdown
 streamlit-autorefresh
+matplotlib
