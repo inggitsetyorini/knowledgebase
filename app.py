@@ -547,6 +547,50 @@ if menu == "✍️ Artikel Saya":
 
         st.success("✅ Artikel berhasil ditambahkan")
         st.rerun()
+    # =====================================================
+    # ================= LIST ARTIKEL ======================
+    # =====================================================
+    st.divider()
+    st.subheader("📄 Daftar Artikel")
+
+    if st.session_state.role in ["admin", "editor"]:
+        articles = pd.read_sql(
+            "SELECT * FROM articles ORDER BY created_at DESC",
+            conn
+        )
+    else:
+        articles = pd.read_sql(
+            "SELECT * FROM articles WHERE author=? ORDER BY created_at DESC",
+            conn,
+            params=(st.session_state.user,)
+        )
+
+    if articles.empty:
+        st.info("Belum ada artikel")
+    else:
+        for _, a in articles.iterrows():
+            with st.expander(f"{a['title']} — ✍️ {a['author']}"):
+                st.markdown(a["content"], unsafe_allow_html=True)
+
+                if a["attachment"]:
+                    st.markdown(f"📎 [Download File]({a['attachment']})")
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    if st.button("✏️ Edit", key=f"edit_{a['id']}"):
+                        st.session_state.edit_article_id = a["id"]
+                        st.rerun()
+
+                with col2:
+                    if st.button("🗑️ Delete", key=f"del_{a['id']}"):
+                        conn.execute(
+                            "DELETE FROM articles WHERE id=?",
+                            (a["id"],)
+                        )
+                        conn.commit()
+                        st.success("🗑️ Artikel dihapus")
+                        st.rerun()
 
 
 if menu == chat_label:
