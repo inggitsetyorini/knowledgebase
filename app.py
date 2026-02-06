@@ -566,8 +566,8 @@ if menu == "✍️ Artikel Saya":
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    if st.button("✏️ Edit", key=f"edit_{r['id']}"):
-                        st.session_state.edit_article_id = r["id"]
+                    if st.button("✏️ Edit", key=f"edit_{a['id']}"):
+                        st.session_state.edit_article_id = a["id"]
                         st.session_state.menu = "✍️ Artikel Saya"
                         st.rerun()
 
