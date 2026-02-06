@@ -434,78 +434,68 @@ import matplotlib.pyplot as plt
 if menu == "✍️ Artikel Saya":
     st.subheader("✍️ Tambah Artikel")
 
-title = st.text_input("Judul Artikel")
+    title = st.text_input("Judul Artikel")
 
-font_family = st.selectbox(
-    "Font Artikel",
-    ["Default", "Serif", "Monospace"]
-)
+    font_family = st.selectbox(
+        "Font Artikel",
+        ["Default", "Serif", "Monospace"]
+    )
 
-content = st.text_area(
-    "Isi Artikel (Markdown didukung)",
-    height=260,
-    placeholder="""
-## Judul Section
-Paragraf biasa
+    content = st.text_area(
+        "Isi Artikel (Markdown didukung)",
+        height=260
+    )
 
-### Tabel
-| Nama | Nilai |
-|------|------|
-| A    | 90   |
-"""
-)
+    # ================= IMAGE / PDF =================
+    file = st.file_uploader(
+        "Upload Gambar / PDF",
+        type=["png", "jpg", "jpeg", "pdf"]
+    )
 
-# ================= IMAGE / PDF =================
-file = st.file_uploader(
-    "Upload Gambar / PDF",
-    type=["png", "jpg", "jpeg", "pdf"]
-)
+    if file and file.type.startswith("image"):
+        st.image(file, width=300)
 
-if file and file.type.startswith("image"):
-    st.image(file, width=300)
+    # ================= CSV → GRAFIK =================
+    st.divider()
+    st.markdown("### 📊 Grafik dari CSV (Opsional)")
 
-# ================= CSV → GRAFIK =================
-st.divider()
-st.markdown("### 📊 Grafik dari CSV (Opsional)")
+    csv_file = st.file_uploader("Upload CSV", type=["csv"])
 
-csv_file = st.file_uploader("Upload CSV", type=["csv"])
+    chart_config = None
 
-chart_config = None
+    if csv_file:
+        df_csv = pd.read_csv(csv_file)
+        st.dataframe(df_csv, use_container_width=True)
 
-if csv_file:
-    df_csv = pd.read_csv(csv_file)
-    st.dataframe(df_csv, use_container_width=True)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            x_col = st.selectbox("Kolom X", df_csv.columns)
+        with c2:
+            y_col = st.selectbox("Kolom Y", df_csv.columns)
+        with c3:
+            chart_type = st.selectbox("Jenis Grafik", ["Line", "Bar", "Area"])
+        with c4:
+            chart_color = st.color_picker("Warna", "#ff5da2")
 
-    c1, c2, c3, c4 = st.columns(4)
+        fig, ax = plt.subplots()
+        if chart_type == "Line":
+            ax.plot(df_csv[x_col], df_csv[y_col], color=chart_color)
+        elif chart_type == "Bar":
+            ax.bar(df_csv[x_col], df_csv[y_col], color=chart_color)
+        else:
+            ax.fill_between(df_csv[x_col], df_csv[y_col], color=chart_color, alpha=0.6)
 
-    with c1:
-        x_col = st.selectbox("Kolom X", df_csv.columns)
-    with c2:
-        y_col = st.selectbox("Kolom Y", df_csv.columns)
-    with c3:
-        chart_type = st.selectbox("Jenis Grafik", ["Line", "Bar", "Area"])
-    with c4:
-        chart_color = st.color_picker("Warna", "#ff5da2")
+        st.pyplot(fig)
 
-    fig, ax = plt.subplots()
-    if chart_type == "Line":
-        ax.plot(df_csv[x_col], df_csv[y_col], color=chart_color)
-    elif chart_type == "Bar":
-        ax.bar(df_csv[x_col], df_csv[y_col], color=chart_color)
-    else:
-        ax.fill_between(df_csv[x_col], df_csv[y_col], color=chart_color, alpha=0.6)
+        chart_config = {
+            "x": x_col,
+            "y": y_col,
+            "type": chart_type,
+            "color": chart_color,
+            "csv": None
+        }
 
-    st.pyplot(fig)
-
-    chart_config = {
-        "x": x_col,
-        "y": y_col,
-        "type": chart_type,
-        "color": chart_color,
-        "csv": None
-    }
-
-    # ================= SIMPAN ARTIKEL =================
+    # ================= ✅ TOMBOL SIMPAN (DI LUAR IF CSV) =================
     if st.button("💾 Simpan Artikel", type="primary"):
         if not title or not content:
             st.warning("Judul dan isi wajib diisi")
@@ -513,6 +503,7 @@ if csv_file:
 
         attach = None
 
+        # ---- SIMPAN GAMBAR / PDF ----
         if file:
             folder = "uploads/images" if file.type.startswith("image") else "uploads/pdfs"
             os.makedirs(folder, exist_ok=True)
@@ -523,124 +514,39 @@ if csv_file:
             if file.type.startswith("image"):
                 content += f"\n\n![{file.name}]({attach})"
 
-    if csv_file and chart_config:
-        os.makedirs("uploads/csv", exist_ok=True)
-        csv_path = f"uploads/csv/{datetime.now().timestamp()}_{csv_file.name}"
-        with open(csv_path, "wb") as f:
-            f.write(csv_file.getbuffer())
-        chart_config["csv"] = csv_path
+        # ---- SIMPAN CSV ----
+        if csv_file and chart_config:
+            os.makedirs("uploads/csv", exist_ok=True)
+            csv_path = f"uploads/csv/{datetime.now().timestamp()}_{csv_file.name}"
+            with open(csv_path, "wb") as f:
+                f.write(csv_file.getbuffer())
+            chart_config["csv"] = csv_path
 
-    font_css = ""
-    if font_family == "Serif":
-        font_css = "font-family:serif;"
-    elif font_family == "Monospace":
-        font_css = "font-family:monospace;"
+        # ---- FONT STYLE ----
+        font_css = ""
+        if font_family == "Serif":
+            font_css = "font-family:serif;"
+        elif font_family == "Monospace":
+            font_css = "font-family:monospace;"
 
-    content = f"<div style='{font_css}'>{content}</div>"
+        content = f"<div style='{font_css}'>{content}</div>"
 
-    conn.execute("""
-        INSERT INTO articles
-        (title, content, author, attachment, chart_config, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (
-        title,
-        content,
-        st.session_state.user,
-        attach,
-        json.dumps(chart_config) if chart_config else None,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ))
-    conn.commit()
+        conn.execute("""
+            INSERT INTO articles
+            (title, content, author, attachment, chart_config, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            title,
+            content,
+            st.session_state.user,
+            attach,
+            json.dumps(chart_config) if chart_config else None,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
+        conn.commit()
 
-    st.success("✅ Artikel berhasil ditambahkan")
-    st.rerun()
-
-
-    # =====================================================
-    # ================= EDIT ARTIKEL ======================
-    # =====================================================
-    if st.session_state.edit_article_id:
-        edit_id = st.session_state.edit_article_id
-
-        a = pd.read_sql(
-            "SELECT * FROM articles WHERE id=?",
-            conn,
-            params=(edit_id,)
-        ).iloc[0]
-
-        st.divider()
-        st.subheader("✏️ Edit Artikel")
-
-        with st.form("edit_form"):
-            edit_title = st.text_input("Judul", a["title"])
-            edit_content = st.text_area("Isi", a["content"], height=260)
-
-            col1, col2 = st.columns(2)
-            with col1:
-                save = st.form_submit_button("💾 Simpan")
-            with col2:
-                cancel = st.form_submit_button("❌ Batal")
-
-        if save:
-            conn.execute("""
-                UPDATE articles
-                SET title=?, content=?, updated_at=?
-                WHERE id=?
-            """, (
-                edit_title,
-                edit_content,
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                edit_id
-            ))
-            conn.commit()
-
-            st.session_state.edit_article_id = None
-            st.success("✅ Artikel diperbarui")
-            st.rerun()
-
-        if cancel:
-            st.session_state.edit_article_id = None
-            st.rerun()
-
-    # =====================================================
-    # ================= LIST ARTIKEL ======================
-    # =====================================================
-    st.divider()
-    st.subheader("📄 Daftar Artikel")
-
-    if st.session_state.role in ["admin", "editor"]:
-        articles = pd.read_sql(
-            "SELECT * FROM articles ORDER BY created_at DESC",
-            conn
-        )
-    else:
-        articles = pd.read_sql(
-            "SELECT * FROM articles WHERE author=? ORDER BY created_at DESC",
-            conn,
-            params=(st.session_state.user,)
-        )
-
-    for _, a in articles.iterrows():
-        with st.expander(f"{a['title']} — ✍️ {a['author']}"):
-            st.markdown(a["content"], unsafe_allow_html=True)
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                if st.button("✏️ Edit", key=f"edit_{a['id']}"):
-                    st.session_state.edit_article_id = a["id"]
-                    st.rerun()
-
-            with col2:
-                if st.button("🗑️ Delete", key=f"del_{a['id']}"):
-                    conn.execute(
-                        "DELETE FROM articles WHERE id=?",
-                        (a["id"],)
-                    )
-                    conn.commit()
-                    st.success("🗑️ Artikel dihapus")
-                    st.rerun()
-
+        st.success("✅ Artikel berhasil ditambahkan")
+        st.rerun()
 
 
 if menu == chat_label:
