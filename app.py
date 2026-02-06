@@ -588,6 +588,53 @@ Paragraf biasa.
         import time
         time.sleep(1)
         st.rerun()
+# ================= EDIT ARTIKEL =================
+if st.session_state.edit_article_id:
+    edit_id = st.session_state.edit_article_id
+
+    a = pd.read_sql(
+        "SELECT * FROM articles WHERE id=?",
+        conn,
+        params=(edit_id,)
+    ).iloc[0]
+
+    st.divider()
+    st.subheader("✏️ Edit Artikel")
+
+    with st.form("edit_article_form"):
+        edit_title = st.text_input("Judul Artikel", a["title"])
+        edit_content = st.text_area(
+            "Isi Artikel (Markdown)",
+            a["content"],
+            height=260
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            save = st.form_submit_button("💾 Simpan Perubahan", type="primary")
+        with col2:
+            cancel = st.form_submit_button("❌ Batal")
+
+    if save:
+        conn.execute("""
+            UPDATE articles
+            SET title=?, content=?, updated_at=?
+            WHERE id=?
+        """, (
+            edit_title,
+            edit_content,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            edit_id
+        ))
+        conn.commit()
+
+        st.success("✅ Artikel berhasil diperbarui")
+        st.session_state.edit_article_id = None
+        st.rerun()
+
+    if cancel:
+        st.session_state.edit_article_id = None
+        st.rerun()
 
     # ================= LIST ARTIKEL =================
     st.divider()
@@ -631,6 +678,20 @@ Paragraf biasa.
                     ax.set_ylabel(cfg["y"])
                     st.pyplot(fig)
 
+# ---- ACTION BUTTONS ----
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("✏️ Edit", key=f"edit_{a['id']}"):
+        st.session_state.edit_article_id = a["id"]
+        st.rerun()
+
+with col2:
+    if st.button("🗑️ Delete", key=f"del_{a['id']}"):
+        conn.execute("DELETE FROM articles WHERE id=?", (a["id"],))
+        conn.commit()
+        st.success("🗑️ Artikel dihapus")
+        st.rerun()
 
 
 if menu == chat_label:
