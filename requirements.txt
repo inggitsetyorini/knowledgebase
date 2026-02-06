@@ -1,0 +1,7 @@
+streamlit
+pandas
+bcrypt
+scikit-learn
+Pillow
+markdown
+streamlit-autorefresh
