@@ -245,8 +245,9 @@ if st.sidebar.button("Logout"):
     st.rerun()
 
 # ================= PAGES =================
-from googletrans import Translator
-translator = Translator()
+from deep_translator import GoogleTranslator
+translator = GoogleTranslator(source="auto", target="id")
+
 
 if menu == "📖 Baca Artikel":
     st.subheader("📖 Baca Artikel")
@@ -365,10 +366,17 @@ if menu == "📖 Baca Artikel":
 
 
             # ===== TRANSLATE =====
+    
             with col3:
-                if st.button("🌍 Translate EN", key=f"tr_{r['id']}"):
+                if st.button("🌐 Translate EN", key=f"tr_{r['id']}"):
                     clean_text = strip_html(r["content"])
-                    translated = translator.translate(clean_text, dest="en").text
+                    translated = GoogleTranslator(
+                        source="auto",
+                        target="id"
+                    ).translate(clean_text)
+
+                    st.write(translated)
+
 
                     st.markdown("### 🇬🇧 English Version")
                     st.markdown(
