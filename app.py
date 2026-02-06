@@ -259,20 +259,19 @@ if menu == "📖 Baca Artikel":
         st.info(f"🧠 Ringkasan AI:\n\n{summary}")
 
     for _, r in df.iterrows():
-        with st.container():
+
+        # ===== DROPDOWN ARTIKEL =====
+        with st.expander(
+            f"📘 {r['title']}  — ✍️ {r['author']} • {r['created_at']}",
+            expanded=False
+        ):
+
             st.markdown("<div class='article-card'>", unsafe_allow_html=True)
-
-            # ===== TITLE =====
-            st.markdown(f"### {r['title']}")
-
-            st.markdown(
-                f"<div class='article-meta'>✍️ {r['author']} • {r['created_at']}</div>",
-                unsafe_allow_html=True
-            )
 
             # ===== CONTENT =====
             st.markdown(r["content"], unsafe_allow_html=True)
-            # ===== RENDER CHART =====
+
+            # ===== GRAFIK =====
             if r.get("chart_config"):
                 cfg = json.loads(r["chart_config"])
                 if cfg and cfg.get("csv") and os.path.exists(cfg["csv"]):
@@ -281,7 +280,6 @@ if menu == "📖 Baca Artikel":
                     st.markdown("#### 📊 Grafik")
 
                     fig, ax = plt.subplots()
-
                     if cfg["type"] == "Line":
                         ax.plot(dfc[cfg["x"]], dfc[cfg["y"]], color=cfg["color"])
                     elif cfg["type"] == "Bar":
@@ -298,12 +296,13 @@ if menu == "📖 Baca Artikel":
                     ax.set_ylabel(cfg["y"])
                     st.pyplot(fig)
 
-
             # ===== ATTACHMENT =====
             if r["attachment"]:
                 st.markdown(f"📎 [Download File]({r['attachment']})")
 
-            # ===== LIKE =====
+            st.divider()
+
+            # ===== LIKE / SHARE / TRANSLATE / KOMENTAR =====
             likes = conn.execute(
                 "SELECT COUNT(*) FROM article_likes WHERE article_id=?",
                 (r["id"],)
@@ -316,11 +315,9 @@ if menu == "📖 Baca Artikel":
 
             col1, col2, col3, col4 = st.columns(4)
 
+            # ❤️ LIKE
             with col1:
-                if st.button(
-                    f"❤️ {likes}",
-                    key=f"like_{r['id']}"
-                ):
+                if st.button(f"❤️ {likes}", key=f"like_{r['id']}"):
                     if not liked:
                         conn.execute(
                             "INSERT INTO article_likes(article_id, username) VALUES (?,?)",
@@ -329,7 +326,7 @@ if menu == "📖 Baca Artikel":
                         conn.commit()
                         st.rerun()
 
-            # ===== SHARE TO CHAT =====
+            # 💬 SHARE
             with col2:
                 target_users = pd.read_sql(
                     "SELECT username FROM users WHERE username != ?",
@@ -343,13 +340,13 @@ if menu == "📖 Baca Artikel":
                     key=f"share_to_{r['id']}"
                 )
 
-                if st.button("💬 Share ke Chat", key=f"share_{r['id']}"):
+                if st.button("💬 Share", key=f"share_{r['id']}"):
                     msg = f"""📚 *{r['title']}*
 
-            {r['content'][:500]}...
+{strip_html(r['content'])[:500]}...
 
-            🔗 Dibagikan dari Knowledge Base
-            """
+🔗 Dibagikan dari Knowledge Base
+"""
                     conn.execute("""
                         INSERT INTO chat
                         (sender, receiver, message, created_at, is_read)
@@ -361,35 +358,27 @@ if menu == "📖 Baca Artikel":
                         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     ))
                     conn.commit()
+                    st.success("✅ Artikel dibagikan")
 
-                    st.success("✅ Artikel berhasil dibagikan ke chat")
-
-
-            # ===== TRANSLATE =====
-    
+            # 🌐 TRANSLATE
             with col3:
                 if st.button("🌐 Translate EN", key=f"tr_{r['id']}"):
                     clean_text = strip_html(r["content"])
                     translated = GoogleTranslator(
                         source="auto",
-                        target="id"
+                        target="en"
                     ).translate(clean_text)
-
-                    st.write(translated)
-
 
                     st.markdown("### 🇬🇧 English Version")
                     st.markdown(
                         f"<div style='font-style:italic'>{translated}</div>",
                         unsafe_allow_html=True
-        )
+                    )
 
-
-            # ===== KOMENTAR =====
+            # 💬 KOMENTAR
             with col4:
-                st.write("💬 Komentar")
+                st.markdown("💬 Komentar")
 
-            # ===== COMMENT LIST =====
             comments = pd.read_sql(
                 "SELECT * FROM article_comments WHERE article_id=? ORDER BY created_at",
                 conn,
@@ -402,7 +391,6 @@ if menu == "📖 Baca Artikel":
                     unsafe_allow_html=True
                 )
 
-            # ===== ADD COMMENT =====
             comment = st.text_input(
                 "Tulis komentar",
                 key=f"c_{r['id']}"
