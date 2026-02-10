@@ -12,24 +12,24 @@ def get_db():
     database_url = os.getenv("DATABASE_URL")
 
     # ================= POSTGRES =================
-    if database_url:
-        import psycopg2
-        #conn = psycopg2.connect(database_url)
-        conn = psycopg2.connect(
-        database_url,
-        sslmode="require",
-        connect_timeout=10
-        )
-
-        init_db_postgres(conn)
-        return conn
+    if database_url and database_url.startswith("postgres"):
+        try:
+            conn = psycopg2.connect(
+                database_url,
+                sslmode="require",
+                connect_timeout=10
+            )
+            conn.autocommit = True   # penting supaya tidak lupa commit
+            init_db_postgres(conn)
+            return conn
+        except Exception as e:
+            print("POSTGRES FAILED, fallback ke SQLITE:", e)
 
     # ================= SQLITE =================
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     init_db_sqlite(conn)
     return conn
-
 
 # ======================================================
 # INIT SQLITE
