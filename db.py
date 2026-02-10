@@ -14,7 +14,13 @@ def get_db():
     # ================= POSTGRES =================
     if database_url:
         import psycopg2
-        conn = psycopg2.connect(database_url)
+        #conn = psycopg2.connect(database_url)
+        conn = psycopg2.connect(
+        database_url,
+        sslmode="require",
+        connect_timeout=10
+        )
+
         init_db_postgres(conn)
         return conn
 
