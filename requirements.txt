@@ -8,3 +8,4 @@ markdown
 streamlit-autorefresh
 matplotlib
 deep-translator
+psycopg2-binary

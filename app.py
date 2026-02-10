@@ -15,9 +15,6 @@ import json
 import matplotlib.pyplot as plt
 import re
 
-st.write("DB:", os.getenv("DATABASE_URL"))   # TEST SEMENTARA
-
-
 def strip_html(text):
     return re.sub("<[^<]+?>", "", text)
 
